@@ -3,6 +3,9 @@ package com.ocps.auth.service;
 import com.ocps.auth.client.NotificationClient;
 import com.ocps.auth.dto.*;
 import com.ocps.auth.entity.*;
+import com.ocps.auth.enums.NotificationType;
+import com.ocps.auth.event.NotificationEvent;
+import com.ocps.auth.event.NotificationProducer;
 import com.ocps.auth.repository.OfficeUserRepository;
 import com.ocps.auth.repository.UanMasterRepository;
 import com.ocps.auth.store.OtpStore;
@@ -28,6 +31,8 @@ public class AuthenticationService {
     private NotificationClient notificationClient;
     @Autowired
     private OtpStore otpStore;
+    @Autowired
+    private NotificationProducer notificationProducer;
 
     public LoginResponseDto memberLogin(LoginRequestDto loginRequestDto) {
         Optional<UanMaster> optionalUanMaster = uanMasterRepository.findByUan(loginRequestDto.getUan());
@@ -44,10 +49,11 @@ public class AuthenticationService {
         String otp = generateOtp();
         otpStore.saveOtp(uanMaster.getUan(), otp);
 
-        NotificationRequestDto notification = new NotificationRequestDto();
-        notification.setRecipient(uanMaster.getUan());
-        notification.setMessage("Your OTP is: " + otp);
-        notificationClient.sendNotification(notification);
+        NotificationEvent event = new NotificationEvent();
+        event.setRecipient(uanMaster.getUan());
+        event.setMessage("Your OTP is: " + otp);
+        event.setType(NotificationType.OTP.name());
+        notificationProducer.send(event);
 
         return new LoginResponseDto("OTP Sent");
     }
