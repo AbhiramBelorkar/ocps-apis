@@ -39,15 +39,6 @@ public class SecurityConfig {
                         )
                         .permitAll()
 
-                        .requestMatchers("/claim/create",
-                                "/claim/my-claims")
-                        .hasRole("MEMBER")
-
-                        .requestMatchers("/claim/details/**",
-                                "/claim/pending/",
-                                "/workflow/**")
-                        .hasAnyRole("DA", "SS", "AO", "APFC")
-
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter,
