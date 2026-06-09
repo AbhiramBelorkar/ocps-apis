@@ -48,7 +48,7 @@ public class AuthenticationController {
 
     @GetMapping("/member/details/{uan}")
     public MemberDetailsResponseDto getMemberDetails( @PathVariable String uan) {
-        return claimService.getMemberDetails(uan);
+        return authenticationService.getMemberDetails(uan);
     }
 
     @PostMapping("/member/verify-otp")

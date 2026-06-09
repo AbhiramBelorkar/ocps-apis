@@ -1,17 +1,15 @@
-package com.ocps.auth.service;
+package com.ocps.claim.service;
 
-import com.ocps.auth.dto.*;
-import com.ocps.auth.entity.Claim;
-import com.ocps.auth.entity.ClaimStatusHistory;
-import com.ocps.auth.entity.MemberAccount;
-import com.ocps.auth.entity.UanMaster;
-import com.ocps.auth.enums.ClaimStatus;
-import com.ocps.auth.enums.ClaimType;
-import com.ocps.auth.exception.ClaimNotFoundException;
-import com.ocps.auth.exception.UnauthorizedActionException;
-import com.ocps.auth.repository.ClaimRepository;
-import com.ocps.auth.repository.ClaimStatusHistoryRepository;
-import com.ocps.auth.repository.UanMasterRepository;
+import com.ocps.claim.client.AuthClient;
+import com.ocps.claim.dto.*;
+import com.ocps.claim.entity.Claim;
+import com.ocps.claim.entity.ClaimStatusHistory;
+import com.ocps.claim.enums.ClaimStatus;
+import com.ocps.claim.enums.ClaimType;
+import com.ocps.claim.exception.ClaimNotFoundException;
+import com.ocps.claim.exception.UnauthorizedActionException;
+import com.ocps.claim.repository.ClaimRepository;
+import com.ocps.claim.repository.ClaimStatusHistoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,28 +23,32 @@ import java.util.Optional;
 
 @Service
 public class ClaimService {
-
-    @Autowired
-    private UanMasterRepository uanMasterRepository;
+    
     @Autowired
     private ClaimRepository claimRepository;
     @Autowired
     private ClaimStatusHistoryRepository claimStatusHistoryRepository;
     @Autowired
     private ClaimWorkflowService claimWorkflowService;
+    @Autowired
+    private AuthClient authClient;
 
     @Transactional
     public ClaimResponseDto submitClaim(ClaimRequestDto requestDto) {
-        UanMaster uanMaster = uanMasterRepository.findByUan(requestDto.getUan())
-                .orElseThrow(() -> new RuntimeException("UAN Not Found"));
+        MemberDetailsResponseDto member = authClient.getMemberDetails(requestDto.getUan());
 
-        MemberAccount memberAccount = uanMaster.getMemberAccounts()
+        if (member == null) {
+            throw new RuntimeException("Invalid UAN");
+        }
+
+        boolean memberExists = member.getMemberAccounts()
                 .stream()
-                .filter(account -> account.getMemberId()
-                        .equals(requestDto.getMemberId()))
-                .findFirst()
-                .orElseThrow(() ->
-                        new RuntimeException("Member ID Not Found"));
+                .anyMatch(account -> account.getMemberId()
+                                .equals(requestDto.getMemberId()));
+
+        if (!memberExists) {
+            throw new RuntimeException("Member ID Not Found");
+        }
 
         Claim claim = new Claim();
         ClaimType claimType = mapClaimType(requestDto.getClaimType());
@@ -54,11 +56,10 @@ public class ClaimService {
         claim.setClaimType(claimType);
         claim.setClaimStatus(ClaimStatus.MEMBER_SUBMITTED);
         claim.setRequestedAmount(requestDto.getRequestedAmount());
-        BigDecimal eligibleAmount = calculateEligibleAmount(claimType);
-        claim.setEligibleAmount(eligibleAmount);
+        claim.setEligibleAmount(calculateEligibleAmount(claimType));
         claim.setSubmissionTime(LocalDateTime.now());
-        claim.setUanMaster(uanMaster);
-        claim.setMemberAccount(memberAccount);
+        claim.setUan(requestDto.getUan());
+        claim.setMemberId(requestDto.getMemberId());
         claimRepository.save(claim);
 
         ClaimStatusHistory history = new ClaimStatusHistory();
@@ -69,8 +70,7 @@ public class ClaimService {
         history.setActionTime(LocalDateTime.now());
         claimStatusHistoryRepository.save(history);
 
-        return new ClaimResponseDto(
-                claim.getTrackingId(),
+        return new ClaimResponseDto(claim.getTrackingId(),
                 claim.getClaimStatus().getCode(),
                 "Claim Submitted Successfully"
         );
@@ -128,29 +128,41 @@ public class ClaimService {
 
     @Transactional
     public String processClaimAction(ClaimActionRequestDto requestDto) {
-        System.out.println(requestDto);
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new RuntimeException("User not authenticated");
+        }
+
+        String actor = authentication.getAuthorities()
+                .stream()
+                .findFirst()
+                .orElseThrow(() ->
+                        new RuntimeException("No role assigned"))
+                .getAuthority()
+                .replace("ROLE_", "");
+
         Claim claim = claimRepository.findByTrackingId(requestDto.getTrackingId())
                 .orElseThrow(() -> new ClaimNotFoundException("Claim Not Found"));
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String actor = authentication.getAuthorities()
-                .iterator()
-                .next()
-                .getAuthority();
-        actor = actor.replace("ROLE_", "");
-
         claimWorkflowService.validateActor(claim.getClaimStatus(), actor);
 
-        ClaimStatus nextStatus = claimWorkflowService.determineNextStatus(claim.getClaimStatus(), actor,requestDto.getAction());
+        ClaimStatus nextStatus = claimWorkflowService.determineNextStatus(
+                        claim.getClaimStatus(),
+                        actor,
+                        requestDto.getAction());
         claim.setClaimStatus(nextStatus);
         claimRepository.save(claim);
+
         ClaimStatusHistory history = new ClaimStatusHistory();
         history.setClaim(claim);
         history.setClaimStatus(nextStatus);
         history.setActionBy(actor);
         history.setRemarks(requestDto.getRemarks());
         history.setActionTime(LocalDateTime.now());
+
         claimStatusHistoryRepository.save(history);
+
         return "Claim moved to " + nextStatus.name();
     }
 

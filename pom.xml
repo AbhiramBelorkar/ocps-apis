@@ -27,6 +27,8 @@
         <module>api-gateway</module>
         <module>auth-service</module>
         <module>notification-service</module>
+        <module>claim-service</module>
+        <module>claim-service</module>
     </modules>
 
     <dependencyManagement>

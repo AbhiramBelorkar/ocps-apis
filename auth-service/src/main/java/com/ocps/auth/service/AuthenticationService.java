@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -94,4 +95,28 @@ public class AuthenticationService {
         return new LoginResponseDto("Login Successful", token);
     }
 
+    public MemberDetailsResponseDto getMemberDetails(String uan) {
+        Optional<UanMaster> optionalUanMaster = uanMasterRepository.findByUan(uan);
+        if (optionalUanMaster.isEmpty()) {
+            throw new RuntimeException("UAN Not Found");
+        }
+        UanMaster uanMaster = optionalUanMaster.get();
+        MemberDetailsResponseDto responseDto = new MemberDetailsResponseDto();
+        responseDto.setUan(uanMaster.getUan());
+        responseDto.setMemberName(uanMaster.getMemberName());
+
+        List<MemberAccountDto> memberAccountDtos = uanMaster.getMemberAccounts()
+                .stream()
+                .map(memberAccount -> {
+                    MemberAccountDto dto = new MemberAccountDto();
+                    dto.setMemberId(memberAccount.getMemberId());
+                    dto.setEstablishmentName(memberAccount.getEstablishmentName());
+                    dto.setDoj(memberAccount.getDoj());
+                    dto.setDoe(memberAccount.getDoe());
+                    return dto;
+                })
+                .toList();
+        responseDto.setMemberAccounts(memberAccountDtos);
+        return responseDto;
+    }
 }
