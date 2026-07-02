@@ -1,15 +1,11 @@
 package com.ocps.auth.controller;
 
 import com.ocps.auth.dto.*;
-import com.ocps.auth.entity.Claim;
 import com.ocps.auth.service.AuthenticationService;
-import com.ocps.auth.service.ClaimService;
 import com.ocps.auth.util.JwtUtil;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/auth")
@@ -17,8 +13,6 @@ public class AuthenticationController {
 
     @Autowired
     private AuthenticationService authenticationService;
-    @Autowired
-    private ClaimService claimService;
     @Autowired
     private JwtUtil jwtUtil;
 

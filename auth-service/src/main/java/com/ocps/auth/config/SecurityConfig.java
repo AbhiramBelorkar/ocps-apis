@@ -31,14 +31,12 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-
                         .requestMatchers(
                                 "/auth/member/login",
                                 "/auth/member/verify-otp",
-                                "/auth/office/login"
-                        )
-                        .permitAll()
-
+                                "/auth/office/login",
+                                "/internal/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter,

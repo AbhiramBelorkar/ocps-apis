@@ -16,9 +16,7 @@ public class InternalController {
     private AuthenticationService authenticationService;
 
     @GetMapping("/member/{uan}")
-    public MemberDetailsResponseDto getMemberDetails(
-            @PathVariable String uan) {
-
+    public MemberDetailsResponseDto getMemberDetails(@PathVariable String uan) {
         return authenticationService.getMemberDetails(uan);
     }
 }

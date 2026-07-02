@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class ClaimService {
@@ -77,7 +76,7 @@ public class ClaimService {
     }
 
     private String generateTrackingId(String uan, ClaimType claimType) {
-        long count = claimRepository.countByUanMaster_UanAndClaimType(uan, claimType);
+        long count = claimRepository.countByUanAndClaimType(uan, claimType);
         long nextSequence = count + 1;
         return uan + claimType.getCode() + String.format("%03d", nextSequence);
     }
@@ -187,7 +186,7 @@ public class ClaimService {
                         .getContext()
                         .getAuthentication();
         String uan = authentication.getName();
-        List<Claim> claims = claimRepository.findByUanMaster_Uan(uan);
+        List<Claim> claims = claimRepository.findByUan(uan);
         return claims.stream()
                 .map(this::mapToClaimDetailsResponse)
                 .toList();
