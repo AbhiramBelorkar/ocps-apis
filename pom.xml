@@ -29,6 +29,7 @@
         <module>notification-service</module>
         <module>claim-service</module>
         <module>claim-service</module>
+        <module>ocps-events</module>
     </modules>
 
     <dependencyManagement>

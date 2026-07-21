@@ -87,6 +87,18 @@
             <version>0.11.5</version>
             <scope>runtime</scope>
         </dependency>
+
+<!--        Kafka-->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.ocps.events</groupId>
+            <artifactId>ocps-events</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
     </dependencies>
 
 </project>

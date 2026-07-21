@@ -6,6 +6,8 @@ import com.ocps.claim.entity.Claim;
 import com.ocps.claim.entity.ClaimStatusHistory;
 import com.ocps.claim.enums.ClaimStatus;
 import com.ocps.claim.enums.ClaimType;
+import com.ocps.claim.event.ClaimEventProducer;
+import com.ocps.claim.event.ClaimSubmittedEvent;
 import com.ocps.claim.exception.ClaimNotFoundException;
 import com.ocps.claim.exception.UnauthorizedActionException;
 import com.ocps.claim.repository.ClaimRepository;
@@ -31,6 +33,8 @@ public class ClaimService {
     private ClaimWorkflowService claimWorkflowService;
     @Autowired
     private AuthClient authClient;
+    @Autowired
+    private ClaimEventProducer claimEventProducer;
 
     @Transactional
     public ClaimResponseDto submitClaim(ClaimRequestDto requestDto) {
@@ -60,6 +64,13 @@ public class ClaimService {
         claim.setUan(requestDto.getUan());
         claim.setMemberId(requestDto.getMemberId());
         claimRepository.save(claim);
+
+        ClaimSubmittedEvent event = new ClaimSubmittedEvent();
+        event.setTrackingId(claim.getTrackingId());
+        event.setUan(claim.getUan());
+        event.setMemberId(claim.getMemberId());
+        event.setStatus(claim.getClaimStatus().name());
+        claimEventProducer.publishClaimSubmitted(event);
 
         ClaimStatusHistory history = new ClaimStatusHistory();
         history.setClaim(claim);
@@ -143,7 +154,6 @@ public class ClaimService {
 
         Claim claim = claimRepository.findByTrackingId(requestDto.getTrackingId())
                 .orElseThrow(() -> new ClaimNotFoundException("Claim Not Found"));
-
         claimWorkflowService.validateActor(claim.getClaimStatus(), actor);
 
         ClaimStatus nextStatus = claimWorkflowService.determineNextStatus(
@@ -159,7 +169,6 @@ public class ClaimService {
         history.setActionBy(actor);
         history.setRemarks(requestDto.getRemarks());
         history.setActionTime(LocalDateTime.now());
-
         claimStatusHistoryRepository.save(history);
 
         return "Claim moved to " + nextStatus.name();
